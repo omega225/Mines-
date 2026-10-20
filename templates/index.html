@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AETHER V32 MINES X-RAY</title>
+    <style>
+        body, html { margin:0; padding:0; background:#000; font-family:'Courier New', monospace; overflow:hidden; }
+        #game-bg { width:100%; height:100vh; border:none; filter: brightness(0.5); }
+        
+        #admin-panel {
+            position: absolute; top: 10px; right: 10px;
+            width: 320px; background: rgba(0, 15, 0, 0.95);
+            border: 2px solid #0f0; border-radius: 10px;
+            box-shadow: 0 0 30px #0f0; padding: 15px; z-index: 10000;
+        }
+
+        .status-bar { font-size: 0.6em; color: #0f0; border-bottom: 1px solid #0f0; margin-bottom: 10px; padding-bottom: 5px; }
+        
+        /* The X-Ray Grid Overlay */
+        .mines-grid {
+            display: grid; grid-template-columns: repeat(5, 1fr);
+            gap: 5px; margin: 15px 0;
+        }
+        .tile {
+            width: 50px; height: 50px; background: rgba(0, 255, 0, 0.05);
+            border: 1px solid #050; display: flex; align-items: center;
+            justify-content: center; font-size: 0.8em; color: #050;
+        }
+        .tile.safe { background: rgba(0, 255, 0, 0.3); border-color: #0f0; color: #fff; text-shadow: 0 0 10px #0f0; }
+        .tile.mine { background: rgba(255, 0, 0, 0.2); border-color: #f00; color: #f00; }
+
+        .btn {
+            width: 100%; padding: 10px; background: #0f0; color: #000;
+            border: none; font-weight: bold; cursor: pointer; margin-top: 5px;
+        }
+        .input-box {
+            width: 100%; background: #000; border: 1px solid #0f0;
+            color: #0f0; padding: 8px; box-sizing: border-box; text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <iframe id="game-bg" src="https://maanwin.site/"></iframe>
+
+    <div id="admin-panel">
+        <div class="status-bar">AETHER_V32_ROOT // SCANNING_GAME_API...</div>
+        
+        <div id="handshake-ui">
+            <div style="font-size: 0.7em; color: #0f0; margin-bottom: 5px;">STEP 1: HANDSHAKE (SYNC SEED)</div>
+            <input type="text" id="roundId" class="input-box" placeholder="ROUND ID (e.g. 7748)">
+            <input type="number" id="calibTile" class="input-box" placeholder="TILE # (1-25) WHERE STAR IS" style="margin-top:5px;">
+            <button class="btn" onclick="doHandshake()">EXECUTE HANDSHAKE</button>
+        </div>
+
+        <div id="result-ui" style="display:none;">
+            <div style="font-size: 0.7em; color: #0f0;">GRID EXTRACTED // ROUND <span id="displayRound">--</span></div>
+            <div class="mines-grid" id="gridDisplay">
+                <!-- 25 Tiles Generated Here -->
+            </div>
+            <div style="font-size: 0.6em; color: #fff; text-align: center;">
+                [GREEN = SAFE] [RED = MINE]
+            </div>
+            <button class="btn" style="background:#555;" onclick="resetSync()">RESET SYNC</button>
+        </div>
+    </div>
+
+    <script>
+        let isSynced = false;
+
+        function doHandshake() {
+            const rid = document.getElementById('roundId').value;
+            const tile = document.getElementById('calibTile').value;
+            
+            fetch('/handshake', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ round_id: rid, index: tile })
+            })
+            .then(res => res.json())
+            .then(data => {
+                isSynced = true;
+                document.getElementById('handshake-ui').style.display = 'none';
+                document.getElementById('result-ui').style.display = 'block';
+                extractGrid();
+            });
+        }
+
+        function extractGrid() {
+            const rid = document.getElementById('roundId').value;
+            
+            fetch('/extract', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ round_id: rid, mines: 3 })
+            })
+            .then(res => res.json())
+            .then(data => {
+                const container = document.getElementById('gridDisplay');
+                container.innerHTML = '';
+                document.getElementById('displayRound').innerText = data.nonce;
+
+                data.grid.forEach((val, index) => {
+                    const tile = document.createElement('div');
+                    tile.className = 'tile ' + (val === 0 ? 'safe' : 'mine');
+                    tile.innerText = (val === 0 ? '⭐' : '💣');
+                    container.appendChild(tile);
+                });
+            });
+        }
+
+        function resetSync() {
+            isSynced = false;
+            document.getElementById('handshake-ui').style.display = 'block';
+            document.getElementById('result-ui').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
